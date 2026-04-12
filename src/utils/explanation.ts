@@ -1,5 +1,5 @@
 // src/utils/explanation.ts
-import { MoveAnalysis } from '@/store/chessStore';
+import { MoveAnalysis } from '@/utils/analysis';
 
 export function getMoveExplanation(analysis: MoveAnalysis, playedMove: string): string {
     if (!analysis) return "";

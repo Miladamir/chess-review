@@ -4,11 +4,14 @@ import { prisma } from '@/lib/db';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> } // <-- CHANGED: params is now a Promise
 ) {
     try {
+        // You must await params before accessing its properties
+        const { id } = await params;
+
         const game = await prisma.game.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!game) {
