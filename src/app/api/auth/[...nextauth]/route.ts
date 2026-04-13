@@ -1,3 +1,4 @@
+// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
@@ -12,19 +13,23 @@ export const authOptions: NextAuthOptions = {
             async authorize(credentials) {
                 if (!credentials?.username) return null;
 
-                const username = credentials.username.trim(); // Trim whitespace
+                // FIX 1: Force lowercase BEFORE sending to the API
+                const username = credentials.username.trim().toLowerCase();
 
                 try {
                     // 1. Verify user exists on Chess.com
                     const res = await fetch(`https://api.chess.com/pub/player/${username}`, {
                         headers: {
-                            'User-Agent': 'ChessReviewer/1.0 (mailto:your-email@example.com)' // MUST BE VALID
+                            // FIX 2: Replace with your ACTUAL email or website URL
+                            // Chess.com blocks Vercel/AWS IPs if this looks like a placeholder!
+                            'User-Agent': 'ChessInsight App - miladamiri201a@gmail.com'
                         }
                     });
 
                     // If 404 or error, user doesn't exist
                     if (!res.ok) {
-                        console.log(`Chess.com API Error: ${res.status}`);
+                        // Log the actual status code so you can see if it's 404 (Not Found) or 403 (Blocked)
+                        console.log(`Chess.com API Error: ${res.status} for user ${username}`);
                         return null;
                     }
 
@@ -33,10 +38,10 @@ export const authOptions: NextAuthOptions = {
 
                     // 2. Create or Update user in our DB
                     const user = await prisma.user.upsert({
-                        where: { username: username.toLowerCase() }, // Normalize to lowercase
+                        where: { username: username }, // Already lowercase
                         update: { name: name },
                         create: {
-                            username: username.toLowerCase(),
+                            username: username,
                             name: name
                         },
                     });
@@ -55,7 +60,7 @@ export const authOptions: NextAuthOptions = {
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
-                token.username = user.username; // Add username to token
+                token.username = user.username;
             }
             return token;
         },
