@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
                     const res = await fetch(`https://api.chess.com/pub/player/${username}`, {
                         headers: {
                             // FIX 2: Chess.com requires this exact format to whitelist server-side requests
-                            'User-Agent': 'ChessInsight (Contact: your-real-email@gmail.com)', 
+                            'User-Agent': 'ChessInsight (Contact: miladamiri201a@gmail.com)', 
                             'Accept': 'application/json',
                         },
                         cache: 'no-store' // Prevent Vercel from caching 403 error responses
