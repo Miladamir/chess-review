@@ -10,28 +10,52 @@ export const authOptions: NextAuthOptions = {
             credentials: {
                 username: { label: "Chess.com Username", type: "text", placeholder: "MagnusCarlsen" },
             },
-            async authorize(credentials) {
+                        async authorize(credentials) {
                 if (!credentials?.username) return null;
 
-                // FIX 1: Force lowercase BEFORE sending to the API
-                const username = credentials.username.trim().toLowerCase();
+                const username = credentials.username.trim().toLowerCase(); 
 
                 try {
-                    // 1. Verify user exists on Chess.com
                     const res = await fetch(`https://api.chess.com/pub/player/${username}`, {
                         headers: {
-                            // FIX 2: Replace with your ACTUAL email or website URL
-                            // Chess.com blocks Vercel/AWS IPs if this looks like a placeholder!
-                            'User-Agent': 'ChessInsight App - miladamiri201a@gmail.com'
-                        }
+                            // CRITICAL: Must follow this exact format for Chess.com to whitelist it
+                            'User-Agent': 'ChessInsight (Contact: your-real-email@gmail.com)', 
+                            'Accept': 'application/json', // Tell them we want JSON
+                        },
+                        cache: 'no-store' // Prevent Vercel from caching the 403 error
                     });
 
-                    // If 404 or error, user doesn't exist
+                    // If not OK, log the ACTUAL status code so we know why it failed
                     if (!res.ok) {
-                        // Log the actual status code so you can see if it's 404 (Not Found) or 403 (Blocked)
-                        console.log(`Chess.com API Error: ${res.status} for user ${username}`);
+                        const errorText = await res.text();
+                        console.error(`Chess.com API Error [${res.status}]: ${errorText}`);
+                        
+                        // You can optionally throw a specific error here that the frontend can read
+                        if (res.status === 404) throw new Error("User not found");
+                        if (res.status === 403 || res.status === 429) throw new Error("Chess.com is blocking the server. Try again later.");
+                        
                         return null;
                     }
+
+                    const playerData = await res.json();
+                    const name = playerData.name || username;
+
+                    const user = await prisma.user.upsert({
+                        where: { username: username },
+                        update: { name: name },
+                        create: {
+                            username: username,
+                            name: name
+                        },
+                    });
+
+                    return { id: user.id, name: user.name, username: user.username };
+                } catch (e: any) {
+                    console.error("Auth Error:", e.message);
+                    // Pass the specific error message to the frontend if available
+                    throw new Error(e.message || "Authentication failed");
+                }
+            }
 
                     const playerData = await res.json();
                     const name = playerData.name || username;
