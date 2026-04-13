@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         const gamesPromises = recentArchives.map((url: string) => 
             fetch(url, { 
                 headers: { 
-                    'User-Agent': 'ChessInsight (Contact: your-real-email@gmail.com)',
+                    'User-Agent': 'ChessInsight (Contact: miladamiri201a@gmail.com)',
                     'Accept': 'application/json'
                 },
                 cache: 'no-store'
