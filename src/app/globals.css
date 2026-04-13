@@ -623,6 +623,8 @@ body {
 
 @media (max-width: 1023px) {
   .controls-bar {
+    position: fixed;
+    /* FIXED: Stays at the bottom of the screen */
     bottom: 0;
     left: 0;
     right: 0;
@@ -669,7 +671,7 @@ body {
    ============================================================ */
 @media (max-width: 1023px) {
 
-  /* Allow the whole page to scroll */
+  /* Allow the whole page to scroll naturally */
   .app-container {
     height: auto;
     min-height: 100dvh;
@@ -677,37 +679,80 @@ body {
     overflow-y: auto;
   }
 
-  /* main-content stacks normally, no flex stretching */
+  /* main-content stacks normally */
   .main-content {
     flex: none;
     min-height: 0;
     overflow: visible;
   }
 
-  /* Board section: natural height only (board square + no flex stretch) */
+  /* Board section: acts as a standard block */
   .board-section {
     flex: none;
+    display: flex;
+    flex-direction: column;
     border-bottom: 1px solid var(--border-subtle);
-    /* No padding-bottom needed — controls-bar is fixed so it doesn't
-       push content; board ends naturally after the square + eval row */
   }
 
-  /* Sidebar: unconstrained height, scrolls with the page,
-     pad bottom so content is never hidden behind the fixed controls bar */
+  /* Board wrapper: sizes tightly to the board */
+  .board-wrapper {
+    flex: none;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    min-height: 0;
+    padding: 0;
+    width: 100%;
+  }
+
+  .board-inner {
+    width: 100%;
+    height: auto;
+    flex: none;
+  }
+
+  /* CONTROLS BAR: Normal flow element, right under the board */
+  .controls-bar {
+    position: relative !important;
+    /* Forcefully removes any leftover fixed/sticky positioning */
+    bottom: auto !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: 10 !important;
+    /* Normal z-index, not hovering above everything */
+    flex: none;
+    width: 100%;
+    background: var(--bg-primary) !important;
+    border-top: 1px solid var(--border-subtle);
+    padding: 10px 16px;
+    box-shadow: none !important;
+    /* Removes the floating shadow */
+    backdrop-filter: none !important;
+    /* Removes the floating blur */
+  }
+
+  /* Sidebar: unconstrained height, scrolls with the page */
   .sidebar-panel {
     flex: none;
     max-height: none;
     min-height: 0;
     overflow: visible;
     border-top: none;
-    padding-bottom: 64px;
-    /* matches fixed controls-bar height */
+    padding-bottom: 20px;
   }
 
-  /* Inner scrollable area in sidebar also clears the fixed bar */
+  /* Inner scrollable area in sidebar is also normal flow */
   .sidebar-panel .flex-1.overflow-y-auto {
     overflow: visible;
     flex: none;
+  }
+
+  /* Sticky Tabs: stay at the top of the viewport when scrolling down */
+  .sidebar-tabs-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg-secondary);
   }
 }
 

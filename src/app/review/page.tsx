@@ -28,42 +28,47 @@ export default function ReviewPage() {
                 {/* Left: Board Section */}
                 <div className="board-section">
 
-                    {/* Mobile Player Header */}
-                    <div className="md:hidden flex items-center justify-between px-4 py-2 bg-[#12151a] border-b border-[#2a2f38] z-10">
-                        <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-xs">♔</div>
-                            <div className="text-sm font-semibold">{headers['White'] || 'White'}</div>
-                        </div>
-                        <EvalBar type="score" />
-                        <div className="flex items-center gap-2">
-                            <div className="text-sm font-semibold">{headers['Black'] || 'Black'}</div>
-                            <div className="w-7 h-7 rounded-full bg-gray-900 border border-gray-600 flex items-center justify-center text-xs">♚</div>
-                        </div>
-                    </div>
-
                     {/* Board Area */}
-                    <div className="board-wrapper">
+                    <div className="board-wrapper relative">
                         {/* Eval Bar (Vertical, Desktop only) */}
-                        <div className="eval-bar-vertical">
+                        <div className="eval-bar-vertical hidden lg:block">
                             <EvalBar type="vertical" />
                         </div>
 
                         <div className="board-inner">
-                            {/* Chessboard — fills the square */}
-                            <div className="w-full h-full relative">
+                            {/* Chessboard Container */}
+                            <div className="flex-1 w-full min-h-0 relative">
                                 <ChessBoard />
+
+                                {/* Mobile Player Overlays (Small pills, NO gradients) */}
+                                <div className="absolute top-2 left-2 z-10 pointer-events-none lg:hidden">
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-md border border-white/10">
+                                        <div className="w-4 h-4 rounded-full bg-gray-800 text-[8px] flex items-center justify-center">♚</div>
+                                        <span className="text-[11px] font-semibold text-gray-200">{headers['Black'] || 'Black'}</span>
+                                    </div>
+                                </div>
+
+                                <div className="absolute bottom-2 left-2 z-10 pointer-events-none lg:hidden">
+                                    <div className="flex items-center gap-1.5 px-2 py-1 bg-black/60 backdrop-blur-sm rounded-md border border-white/10">
+                                        <div className="w-4 h-4 rounded-full bg-gray-300 text-black text-[8px] flex items-center justify-center font-bold">♔</div>
+                                        <span className="text-[11px] font-semibold text-gray-200">{headers['White'] || 'White'}</span>
+                                    </div>
+                                </div>
+
+                                {/* Eval Score Pill (Mobile) */}
+                                <div className="absolute top-2 right-2 z-10 pointer-events-none lg:hidden">
+                                    <EvalBar type="score" />
+                                </div>
                             </div>
+
                             {/* Eval Bar (Horizontal, Mobile only) */}
-                            <div className="w-full md:hidden flex-shrink-0">
+                            <div className="w-full lg:hidden flex-shrink-0 px-1">
                                 <EvalBar type="horizontal" />
                             </div>
                         </div>
                     </div>
 
-                    {/* Controls Bar
-                        · Desktop: normal flow, pinned at bottom of board-section via flex-shrink-0
-                        · Mobile:  position: fixed; bottom: 0  (set in globals.css .controls-bar media query)
-                    */}
+                    {/* Controls Bar - Sticks right under the board! */}
                     <div className="controls-bar">
                         <GameControls />
                     </div>
@@ -72,27 +77,12 @@ export default function ReviewPage() {
                 {/* Right: Sidebar Panel */}
                 <div className="sidebar-panel">
 
-                    {/* Tab Headers — always visible, never scrolls away */}
-                    <div className="border-b border-[#2a2f38] flex-shrink-0 bg-[#12151a]">
+                    {/* Tab Headers — Sticky on mobile */}
+                    <div className="sidebar-tabs-header border-b border-[#2a2f38] flex-shrink-0 bg-[#12151a]">
                         <div className="flex">
-                            <button
-                                onClick={() => setActiveTab('review')}
-                                className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'review' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-                            >
-                                Review
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('opening')}
-                                className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'opening' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-                            >
-                                Opening
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('insights')}
-                                className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'insights' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
-                            >
-                                Insights
-                            </button>
+                            <button onClick={() => setActiveTab('review')} className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'review' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}>Review</button>
+                            <button onClick={() => setActiveTab('opening')} className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'opening' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}>Opening</button>
+                            <button onClick={() => setActiveTab('insights')} className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'insights' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}>Insights</button>
                         </div>
                     </div>
 
@@ -110,17 +100,10 @@ export default function ReviewPage() {
                         </div>
                     )}
 
-                    {/* Sidebar Scrollable Content
-                        · Desktop: flex-1 + overflow-y-auto so it fills remaining sidebar height
-                        · Mobile:  renders at natural height, page itself scrolls (no internal scroll)
-                    */}
+                    {/* Sidebar Scrollable Content */}
                     <div className="custom-scrollbar md:flex-1 md:overflow-y-auto md:min-h-0">
                         {activeTab === 'review' && <MoveList />}
-                        {activeTab === 'opening' && (
-                            <div className="p-3">
-                                <OpeningExplorer />
-                            </div>
-                        )}
+                        {activeTab === 'opening' && <div className="p-3"><OpeningExplorer /></div>}
                         {activeTab === 'insights' && (
                             <div className="p-3 space-y-4">
                                 <GameSummary />
@@ -131,12 +114,7 @@ export default function ReviewPage() {
 
                     {/* Footer Stats */}
                     <div className="p-3 border-t border-[#2a2f38] bg-[#12151a] text-xs text-gray-500 flex justify-between items-center flex-shrink-0">
-                        <span>
-                            Accuracy: W{' '}
-                            <span className="text-green-400 font-semibold">--</span>
-                            {' '}| B{' '}
-                            <span className="text-red-400 font-semibold">--</span>
-                        </span>
+                        <span>Accuracy: W <span className="text-green-400 font-semibold">--</span> | B <span className="text-red-400 font-semibold">--</span></span>
                         <span className="font-mono bg-black/20 px-2 py-0.5 rounded">Stockfish 16</span>
                     </div>
                 </div>
