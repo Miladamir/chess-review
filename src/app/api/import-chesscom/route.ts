@@ -1,4 +1,3 @@
-// src/app/api/import-chesscom/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
@@ -10,8 +9,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Game ID is required' }, { status: 400 });
     }
 
-    // Headers to mimic a real browser (Critical for Chess.com anti-bot)
+    // Headers properly formatted for Chess.com API
     const headers = {
+        'User-Agent': 'ChessInsight (Contact: miladamiri201a@gmail.com)',
+        'Accept': 'application/json',
+    };
+
+    // Fallback headers if they block the API endpoint but allow the web route
+    const webHeaders = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
         'Referer': 'https://www.chess.com/',
         'Accept': '*/*',
@@ -32,6 +37,8 @@ export async function GET(request: NextRequest) {
                 pgnText = data.pgn;
                 console.log("Success via API.");
             }
+        } else {
+            console.log(`API attempt failed with status: ${res.status}`);
         }
     } catch (e) {
         console.log("API attempt failed, trying fallback...");
@@ -41,10 +48,9 @@ export async function GET(request: NextRequest) {
     if (!pgnText) {
         try {
             console.log(`Attempt 2: Fetching PGN directly for ID ${gameId}...`);
-            // This URL is what the browser uses when you click "Download PGN"
             const directUrl = `https://www.chess.com/game/${gameType}/${gameId}/pgn`;
 
-            const res = await fetch(directUrl, { headers, cache: 'no-store' });
+            const res = await fetch(directUrl, { headers: webHeaders, cache: 'no-store' });
 
             if (res.ok) {
                 pgnText = await res.text();
@@ -65,7 +71,6 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    // Validate PGN content isn't an error message
     if (pgnText.includes("Page Not Found") || pgnText.length < 50) {
         return NextResponse.json(
             { error: 'Invalid PGN data retrieved.' },
