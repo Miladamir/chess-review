@@ -1,4 +1,3 @@
-// src/app/api/auth/[...nextauth]/route.ts
 import NextAuth, { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { prisma } from "@/lib/db";
@@ -10,38 +9,40 @@ export const authOptions: NextAuthOptions = {
             credentials: {
                 username: { label: "Chess.com Username", type: "text", placeholder: "MagnusCarlsen" },
             },
-                        async authorize(credentials) {
+            async authorize(credentials) {
                 if (!credentials?.username) return null;
 
-                const username = credentials.username.trim().toLowerCase(); 
+                // FIX 1: Force lowercase BEFORE sending to the API
+                const username = credentials.username.trim().toLowerCase();
 
                 try {
+                    // 1. Verify user exists on Chess.com
                     const res = await fetch(`https://api.chess.com/pub/player/${username}`, {
                         headers: {
-                            // CRITICAL: Must follow this exact format for Chess.com to whitelist it
+                            // FIX 2: Chess.com requires this exact format to whitelist server-side requests
                             'User-Agent': 'ChessInsight (Contact: your-real-email@gmail.com)', 
-                            'Accept': 'application/json', // Tell them we want JSON
+                            'Accept': 'application/json',
                         },
-                        cache: 'no-store' // Prevent Vercel from caching the 403 error
+                        cache: 'no-store' // Prevent Vercel from caching 403 error responses
                     });
 
                     // If not OK, log the ACTUAL status code so we know why it failed
                     if (!res.ok) {
                         const errorText = await res.text();
-                        console.error(`Chess.com API Error [${res.status}]: ${errorText}`);
+                        console.error(`Chess.com Auth API Error [${res.status}]: ${errorText}`);
                         
-                        // You can optionally throw a specific error here that the frontend can read
-                        if (res.status === 404) throw new Error("User not found");
-                        if (res.status === 403 || res.status === 429) throw new Error("Chess.com is blocking the server. Try again later.");
+                        if (res.status === 404) throw new Error("User not found on Chess.com.");
+                        if (res.status === 403 || res.status === 429) throw new Error("Chess.com is currently blocking the server. Please try again later.");
                         
-                        return null;
+                        throw new Error("Failed to connect to Chess.com API.");
                     }
 
                     const playerData = await res.json();
                     const name = playerData.name || username;
 
+                    // 2. Create or Update user in our DB
                     const user = await prisma.user.upsert({
-                        where: { username: username },
+                        where: { username: username }, // Normalize to lowercase
                         update: { name: name },
                         create: {
                             username: username,
@@ -52,28 +53,8 @@ export const authOptions: NextAuthOptions = {
                     return { id: user.id, name: user.name, username: user.username };
                 } catch (e: any) {
                     console.error("Auth Error:", e.message);
-                    // Pass the specific error message to the frontend if available
+                    // Pass the specific error message to the frontend so the user isn't blind
                     throw new Error(e.message || "Authentication failed");
-                }
-            }
-
-                    const playerData = await res.json();
-                    const name = playerData.name || username;
-
-                    // 2. Create or Update user in our DB
-                    const user = await prisma.user.upsert({
-                        where: { username: username }, // Already lowercase
-                        update: { name: name },
-                        create: {
-                            username: username,
-                            name: name
-                        },
-                    });
-
-                    return { id: user.id, name: user.name, username: user.username };
-                } catch (e) {
-                    console.error("Auth Error:", e);
-                    return null;
                 }
             }
         })
