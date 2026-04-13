@@ -292,8 +292,6 @@ body {
   background-color: rgba(100, 116, 139, 0.8);
 }
 
-/* Add to src/app/globals.css */
-
 /* --- Animations --- */
 @keyframes fade-up {
   from {
@@ -407,26 +405,21 @@ body {
   width: 80%;
 }
 
-/* Add to src/app/globals.css */
-
-/* Review Layout Specifics */
+/* Review Layout */
 .review-layout {
   display: grid;
   grid-template-columns: 1fr;
   height: calc(100vh - 64px);
-  /* Full height minus header */
 }
 
 @media (min-width: 1024px) {
   .review-layout {
     grid-template-columns: 1fr 380px;
-    /* Board area | Sidebar */
   }
 }
 
 /* Move List Styling */
 .move-list {
-  /* Renamed to custom-scrollbar utility usually, but specific styles here */
   scrollbar-width: thin;
   scrollbar-color: var(--border-accent) var(--bg-secondary);
 }
@@ -498,7 +491,7 @@ body {
   border: 1px solid rgba(212, 160, 18, 0.2);
 }
 
-/* Hamburger */
+/* Hamburger (combined + deduplicated) */
 .hamburger {
   display: flex;
   flex-direction: column;
@@ -535,33 +528,15 @@ body {
   font-weight: 600;
 }
 
-/* Scrollbar */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 116, 139, 0.5);
-  border-radius: 20px;
-}
-
-/* Add to the bottom of src/app/globals.css */
-
-/* --- App Layout (Review Page) --- */
+/* ============================================================
+   APP LAYOUT — DESKTOP (flex, locked to viewport height)
+   ============================================================ */
 .app-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
   height: 100dvh;
-  /* Dynamic viewport height for mobile browsers */
   width: 100vw;
   overflow: hidden;
-  position: relative;
 }
 
 .main-content {
@@ -569,7 +544,7 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  /* CRITICAL: Allows flex children to shrink */
+  /* lets flex children shrink */
   overflow: hidden;
 }
 
@@ -579,9 +554,9 @@ body {
   }
 }
 
+/* Board section */
 .board-section {
   flex: 1 1 0;
-  /* Key fix: Allows board to take priority over sidebar */
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -597,12 +572,79 @@ body {
   }
 }
 
+/* Board wrapper */
+.board-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  /* lets width drive size on mobile */
+  justify-content: center;
+  min-height: 0;
+  padding: 0;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .board-wrapper {
+    padding: 16px;
+    align-items: center;
+  }
+}
+
+/* Board inner */
+.board-inner {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  /* square derived from width on mobile */
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .board-inner {
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 1;
+    max-height: 100%;
+  }
+}
+
+/* Controls bar — normal flow on desktop, fixed at bottom on mobile */
+.controls-bar {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-primary);
+  padding: 8px 12px;
+}
+
+@media (max-width: 1023px) {
+  .controls-bar {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: 10px 16px;
+    background: rgba(10, 12, 15, 0.97);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@media (min-width: 1024px) {
+  .controls-bar {
+    padding: 12px 16px;
+  }
+}
+
+/* Sidebar panel */
 .sidebar-panel {
   flex: 0 1 auto;
-  /* Key fix: Sidebar will shrink to accommodate board */
-  min-height: 80px;
-  max-height: 35vh;
-  /* Prevent sidebar from stealing too much space on short screens */
   background: var(--bg-secondary);
   border-top: 1px solid var(--border-subtle);
   display: flex;
@@ -622,64 +664,50 @@ body {
   }
 }
 
-/* Board Container Logic */
-/* Board Container Logic */
-/* Board Container Logic */
-.board-wrapper {
-  flex: 1;
-  display: flex;
-  align-items: flex-start;
-  /* was: center — lets board stretch full width on mobile */
-  justify-content: center;
-  min-height: 0;
-  padding: 0;
-  width: 100%;
-  /* explicit full width */
-}
+/* ============================================================
+   MOBILE OVERRIDES — page scrolls, board is fixed-size block
+   ============================================================ */
+@media (max-width: 1023px) {
 
-@media (min-width: 1024px) {
-  .board-wrapper {
-    padding: 16px;
-    align-items: center;
-    /* restore centering on desktop */
+  /* Allow the whole page to scroll */
+  .app-container {
+    height: auto;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
-}
 
-.board-inner {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 1;
-  /* makes it a square on mobile */
-  height: auto;
-  /* was: height: 100% — this was the main culprit */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-@media (min-width: 1024px) {
-  .board-inner {
-    width: auto;
-    height: 100%;
-    max-width: 100%;
-    aspect-ratio: 1;
-    max-height: 100%;
+  /* main-content stacks normally, no flex stretching */
+  .main-content {
+    flex: none;
+    min-height: 0;
+    overflow: visible;
   }
-}
 
-/* Controls Bar - Always pinned at bottom of board section */
-.controls-bar {
-  flex-shrink: 0;
-  /* Never shrinks, always visible */
-  border-top: 1px solid var(--border-subtle);
-  background: var(--bg-primary)/95;
-  backdrop-filter: blur(8px);
-  padding: 8px 12px;
-}
+  /* Board section: natural height only (board square + no flex stretch) */
+  .board-section {
+    flex: none;
+    border-bottom: 1px solid var(--border-subtle);
+    /* No padding-bottom needed — controls-bar is fixed so it doesn't
+       push content; board ends naturally after the square + eval row */
+  }
 
-@media (min-width: 1024px) {
-  .controls-bar {
-    padding: 12px 16px;
+  /* Sidebar: unconstrained height, scrolls with the page,
+     pad bottom so content is never hidden behind the fixed controls bar */
+  .sidebar-panel {
+    flex: none;
+    max-height: none;
+    min-height: 0;
+    overflow: visible;
+    border-top: none;
+    padding-bottom: 64px;
+    /* matches fixed controls-bar height */
+  }
+
+  /* Inner scrollable area in sidebar also clears the fixed bar */
+  .sidebar-panel .flex-1.overflow-y-auto {
+    overflow: visible;
+    flex: none;
   }
 }
 
@@ -778,7 +806,7 @@ body {
   background: rgba(249, 115, 22, 0.1) !important;
 }
 
-/* Ensure move chip styles don't conflict */
+/* Move chip */
 .move-chip {
   padding: 4px 8px;
   border-radius: 4px;

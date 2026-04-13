@@ -41,59 +41,80 @@ export default function ReviewPage() {
                         </div>
                     </div>
 
-                    {/* Board Area - Fills available space */}
+                    {/* Board Area */}
                     <div className="board-wrapper">
-                        {/* Eval Bar (Vertical Desktop) */}
+                        {/* Eval Bar (Vertical, Desktop only) */}
                         <div className="eval-bar-vertical">
                             <EvalBar type="vertical" />
                         </div>
 
                         <div className="board-inner">
-                            {/* Chessboard takes remaining space */}
-                            {/* After */}
+                            {/* Chessboard — fills the square */}
                             <div className="w-full h-full relative">
                                 <ChessBoard />
                             </div>
-                            {/* Eval Bar (Horizontal Mobile) */}
+                            {/* Eval Bar (Horizontal, Mobile only) */}
                             <div className="w-full md:hidden flex-shrink-0">
                                 <EvalBar type="horizontal" />
                             </div>
                         </div>
                     </div>
 
-                    {/* Controls Bar - Pinned at bottom */}
+                    {/* Controls Bar
+                        · Desktop: normal flow, pinned at bottom of board-section via flex-shrink-0
+                        · Mobile:  position: fixed; bottom: 0  (set in globals.css .controls-bar media query)
+                    */}
                     <div className="controls-bar">
                         <GameControls />
                     </div>
                 </div>
 
-                {/* Right: Sidebar Panel - Internal scroll only */}
+                {/* Right: Sidebar Panel */}
                 <div className="sidebar-panel">
-                    {/* Header Tabs */}
+
+                    {/* Tab Headers — always visible, never scrolls away */}
                     <div className="border-b border-[#2a2f38] flex-shrink-0 bg-[#12151a]">
                         <div className="flex">
-                            <button onClick={() => setActiveTab('review')} className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'review' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}>Review</button>
-                            <button onClick={() => setActiveTab('opening')} className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'opening' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}>Opening</button>
-                            <button onClick={() => setActiveTab('insights')} className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'insights' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}>Insights</button>
+                            <button
+                                onClick={() => setActiveTab('review')}
+                                className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'review' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+                            >
+                                Review
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('opening')}
+                                className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'opening' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+                            >
+                                Opening
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('insights')}
+                                className={`flex-1 py-3 px-4 text-xs font-semibold ${activeTab === 'insights' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-gray-500 hover:text-gray-300 border-b-2 border-transparent'}`}
+                            >
+                                Insights
+                            </button>
                         </div>
                     </div>
 
-                    {/* Engine Info (Review Tab Only) */}
+                    {/* Engine Info (Review Tab only) */}
                     {activeTab === 'review' && (
                         <div className="p-3 border-b border-[#2a2f38] bg-[#12151a] flex-shrink-0">
                             <EnginePanel />
                         </div>
                     )}
 
-                    {/* Eval Graph - Placed in sidebar to save vertical space on main board */}
+                    {/* Eval Graph (Review Tab, desktop only) */}
                     {activeTab === 'review' && (
                         <div className="p-3 border-b border-[#2a2f38] bg-[#12151a] flex-shrink-0 hidden md:block">
                             <EvalGraph />
                         </div>
                     )}
 
-                    {/* Sidebar Content - Scrollable area */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                    {/* Sidebar Scrollable Content
+                        · Desktop: flex-1 + overflow-y-auto so it fills remaining sidebar height
+                        · Mobile:  renders at natural height, page itself scrolls (no internal scroll)
+                    */}
+                    <div className="custom-scrollbar md:flex-1 md:overflow-y-auto md:min-h-0">
                         {activeTab === 'review' && <MoveList />}
                         {activeTab === 'opening' && (
                             <div className="p-3">
@@ -110,7 +131,12 @@ export default function ReviewPage() {
 
                     {/* Footer Stats */}
                     <div className="p-3 border-t border-[#2a2f38] bg-[#12151a] text-xs text-gray-500 flex justify-between items-center flex-shrink-0">
-                        <span>Accuracy: W <span className="text-green-400 font-semibold">--</span> | B <span className="text-red-400 font-semibold">--</span></span>
+                        <span>
+                            Accuracy: W{' '}
+                            <span className="text-green-400 font-semibold">--</span>
+                            {' '}| B{' '}
+                            <span className="text-red-400 font-semibold">--</span>
+                        </span>
                         <span className="font-mono bg-black/20 px-2 py-0.5 rounded">Stockfish 16</span>
                     </div>
                 </div>
