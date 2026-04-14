@@ -55,9 +55,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 currentMoveIndex: newHistory.length,
             });
             return true;
-        } catch (e) {
-            return false;
-        }
+        } catch (e) { return false; }
     },
 
     playMove: (san: string) => {
@@ -65,7 +63,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
         try {
             const move = game.move(san);
             if (move === null) return false;
-
             const newHistory = game.history();
             set({
                 game,
@@ -75,9 +72,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 currentMoveIndex: newHistory.length,
             });
             return true;
-        } catch (e) {
-            return false;
-        }
+        } catch (e) { return false; }
     },
 
     resetGame: () => {
@@ -98,9 +93,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
         const movesList = get().movesList;
         if (targetIndex < 0 || targetIndex > movesList.length) return;
         const tempGame = new Chess();
-        for (let i = 0; i < targetIndex; i++) {
-            tempGame.move(movesList[i]);
-        }
+        for (let i = 0; i < targetIndex; i++) tempGame.move(movesList[i]);
         set({
             game: tempGame,
             fen: tempGame.fen(),
@@ -119,65 +112,36 @@ export const useChessStore = create<ChessState>((set, get) => ({
         if (index < get().movesList.length) get().jumpToMove(index + 1);
     },
 
-    // Inside src/store/chessStore.ts -> setGameFromPgn
-
-    // Inside src/store/chessStore.ts -> setGameFromPgn
-
     setGameFromPgn: (pgn: string, playerUsername?: string) => {
         try {
             const tempGame = new Chess();
             tempGame.loadPgn(pgn);
             const history = tempGame.history();
             const rawHeaders = tempGame.header();
-
-            // Filter out empty headers
             const headers: Record<string, string> = {};
             Object.keys(rawHeaders).forEach(key => {
                 if (rawHeaders[key]) headers[key] = rawHeaders[key];
             });
-
-            // Auto-detect orientation (Respect Settings)
             let detectedOrientation: 'w' | 'b' = 'w';
-            const autoFlip = useSettingsStore.getState().autoFlipBoard; // <-- Check setting
-
+            const autoFlip = useSettingsStore.getState().autoFlipBoard;
             if (autoFlip && playerUsername) {
-                const whitePlayer = headers['White']?.toLowerCase();
-                const blackPlayer = headers['Black']?.toLowerCase();
-                if (blackPlayer === playerUsername.toLowerCase()) {
-                    detectedOrientation = 'b';
-                }
+                if (headers['Black']?.toLowerCase() === playerUsername.toLowerCase()) detectedOrientation = 'b';
             }
-
             set({
-                game: tempGame,
-                fen: tempGame.fen(),
-                turn: tempGame.turn(),
-                movesList: history,
-                currentMoveIndex: history.length,
-                analysis: {},
-                headers: headers,
-                orientation: detectedOrientation,
+                game: tempGame, fen: tempGame.fen(), turn: tempGame.turn(),
+                movesList: history, currentMoveIndex: history.length,
+                analysis: {}, headers: headers, orientation: detectedOrientation,
             });
             return true;
-        } catch (e) {
-            console.error(e);
-            return false;
-        }
+        } catch (e) { console.error(e); return false; }
     },
 
-    flipBoard: () => {
-        const current = get().orientation;
-        set({ orientation: current === 'w' ? 'b' : 'w' });
-    },
-
-    setOrientation: (color: 'w' | 'b') => {
-        set({ orientation: color });
-    },
+    flipBoard: () => { set({ orientation: get().orientation === 'w' ? 'b' : 'w' }); },
+    setOrientation: (color: 'w' | 'b') => { set({ orientation: color }); },
 
     startFullAnalysis: async () => {
         const movesList = get().movesList;
         const analyzePosition = useEngineStore.getState().analyzePositionForReview;
-
         useEngineStore.setState({ isAnalyzingGame: true });
         const setAnalyzing = (val: boolean, progress: number) => set({ isAnalyzing: val, analysisProgress: progress });
 
@@ -193,8 +157,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 if (!res.ok) return false;
                 const data = await res.json();
                 if (!data.moves || data.moves.length === 0) return false;
-                const moveExists = data.moves.some((m: any) => m.san === playedSan && m.total > 0);
-                return moveExists;
+                return data.moves.some((m: any) => m.san === playedSan && m.total > 0);
             } catch (e) { return false; }
         };
 
@@ -208,38 +171,51 @@ export const useChessStore = create<ChessState>((set, get) => ({
             return change;
         };
 
+        // Cache stores raw engine data (relative to side-to-move) to skip calculations
+        let cachedNextBefore: { rawScore: number; bestMove: string | null; mate?: number } | null = null;
+
         for (let i = 0; i < movesList.length; i++) {
             if (!useEngineStore.getState().isAnalyzingGame) break;
-
             setAnalyzing(true, Math.round(((i + 1) / movesList.length) * 100));
 
             const fenBefore = tempGame.fen();
+            const isWhiteTurnBefore = fenBefore.includes(' w ');
+
             let classification: Classification = null;
             let bestMoveUci = "";
-            let scoreBefore = 0;
-            let scoreAfter = 0;
-            let mate = undefined;
+            let rawScoreBefore = 0;
+            let scoreBeforeWhite = 0; // ALWAYS from White's perspective
+            let scoreAfterWhite = 0;  // ALWAYS from White's perspective
+            let mateBeforeWhite = undefined;
+            let mateAfterWhite = undefined;
 
             // 1. Book Check
-            if (!isOutOfBook) {
+            if (!isOutOfBook && i < 16) {
                 const isBook = await checkBookMove(fenBefore, movesList[i]);
                 if (isBook) {
                     classification = 'book';
                     tempGame.move(movesList[i]);
                     set((state) => ({ analysis: { ...state.analysis, [i]: { classification: 'book' } } }));
+                    cachedNextBefore = null;
                     continue;
-                } else {
-                    isOutOfBook = true;
-                }
+                } else { isOutOfBook = true; }
             }
 
-            // 2. Analyze Before
-            const analysisBefore = await analyzePosition(fenBefore);
-            scoreBefore = analysisBefore.score;
-            const mateBefore = analysisBefore.mate;
-            bestMoveUci = analysisBefore.bestMove;
+            // 2. Get BEFORE analysis
+            if (cachedNextBefore && cachedNextBefore.bestMove) {
+                rawScoreBefore = cachedNextBefore.rawScore;
+                bestMoveUci = cachedNextBefore.bestMove;
+                mateBeforeWhite = isWhiteTurnBefore ? cachedNextBefore.mate : (cachedNextBefore.mate ? -cachedNextBefore.mate : undefined);
+            } else {
+                const analysisBefore = await analyzePosition(fenBefore);
+                rawScoreBefore = analysisBefore.score;
+                bestMoveUci = analysisBefore.bestMove;
+                mateBeforeWhite = isWhiteTurnBefore ? analysisBefore.mate : (analysisBefore.mate ? -analysisBefore.mate : undefined);
+            }
 
-            // Derive SAN for the best move
+            // Convert raw score to White's perspective
+            scoreBeforeWhite = isWhiteTurnBefore ? rawScoreBefore : -rawScoreBefore;
+
             let bestMoveSan = "";
             if (bestMoveUci) {
                 try {
@@ -253,50 +229,51 @@ export const useChessStore = create<ChessState>((set, get) => ({
             const moveObj = tempGame.move(movesList[i]);
             if (!moveObj) continue;
 
-            // 4. OPTIMIZATION: Check if we can skip "After" analysis
+            // 4. Evaluate AFTER state
             const materialChange = getMaterialChange(moveObj);
             const playedSan = movesList[i];
+            let currentAfterAnalysis: { rawScore: number; bestMove: string | null; mate?: number } | null = null;
 
             if (bestMoveSan === playedSan) {
-                // PERFECT MOVE DETECTED
-                // We assume the evaluation remains ideal (scoreAfter = -scoreBefore relative to mover)
-                // This saves 50% of engine time for good moves.
                 classification = 'best';
-                scoreAfter = -scoreBefore; // It's the best, so eval relative to opponent is negation
+                scoreAfterWhite = scoreBeforeWhite; // Best move maintains the advantage
+                mateAfterWhite = mateBeforeWhite;
 
-                // Check for brilliant/great logic using heuristics
+                // Cache the raw score for the next move (negated because turn switches)
+                currentAfterAnalysis = { rawScore: -rawScoreBefore, bestMove: null, mate: mateBeforeWhite ? -mateBeforeWhite : undefined };
+
                 const isSacrifice = materialChange < 0;
-                if (isSacrifice && scoreBefore > -50 && scoreBefore < 50) {
-                    classification = 'brilliant';
-                } else if (mateBefore && mateBefore > 0) {
-                    classification = 'best'; // Mating move
-                }
+                if (isSacrifice && scoreBeforeWhite > -50 && scoreBeforeWhite < 50) classification = 'brilliant';
+                else if (mateBeforeWhite && mateBeforeWhite > 0) classification = 'best';
 
             } else {
-                // NOT THE BEST MOVE
-                // We must analyze AFTER to see how bad it is.
-
                 const fenAfter = tempGame.fen();
+                const isWhiteTurnAfter = fenAfter.includes(' w ');
                 const analysisAfter = await analyzePosition(fenAfter);
-                scoreAfter = -analysisAfter.score; // Relative
-                mate = analysisAfter.mate ? -analysisAfter.mate : undefined;
 
-                const evalDrop = scoreBefore - scoreAfter;
+                // Convert after score to White's perspective
+                scoreAfterWhite = isWhiteTurnAfter ? analysisAfter.score : -analysisAfter.score;
+                mateAfterWhite = isWhiteTurnAfter ? analysisAfter.mate : (analysisAfter.mate ? -analysisAfter.mate : undefined);
 
-                // Classify based on drop
-                if (mateBefore && mateBefore < 5) {
-                    classification = 'miss';
-                } else if (scoreBefore > 300 && evalDrop > 100) {
-                    classification = 'miss';
-                } else if (scoreBefore > 100 && evalDrop > 50) {
-                    classification = 'mistake';
-                } else {
-                    if (evalDrop > 100) classification = 'blunder';
-                    else if (evalDrop > 50) classification = 'mistake';
-                    else if (evalDrop > 20) classification = 'inaccuracy';
-                    else classification = 'excellent';
-                }
+                currentAfterAnalysis = { rawScore: analysisAfter.score, bestMove: analysisAfter.bestMove, mate: analysisAfter.mate };
+
+                // Eval drop relative to the moving player
+                let evalDrop = scoreBeforeWhite - scoreAfterWhite;
+                if (!isWhiteTurnBefore) evalDrop = -evalDrop;
+
+                const playerHadMate = isWhiteTurnBefore ? (mateBeforeWhite && mateBeforeWhite > 0) : (mateBeforeWhite && mateBeforeWhite < 0);
+
+                if (playerHadMate) {
+                    const playerStillHasMate = isWhiteTurnBefore ? (mateAfterWhite && mateAfterWhite > 0) : (mateAfterWhite && mateAfterWhite < 0);
+                    if (!playerStillHasMate) classification = 'miss';
+                    else classification = 'best';
+                } else if (evalDrop > 300) classification = 'blunder';
+                else if (evalDrop > 100) classification = 'mistake';
+                else if (evalDrop > 30) classification = 'inaccuracy';
+                else classification = 'excellent';
             }
+
+            cachedNextBefore = currentAfterAnalysis;
 
             set((state) => ({
                 analysis: {
@@ -304,9 +281,9 @@ export const useChessStore = create<ChessState>((set, get) => ({
                     [i]: {
                         classification,
                         bestMove: bestMoveUci,
-                        scoreBefore,
-                        scoreAfter,
-                        mate
+                        scoreBefore: scoreBeforeWhite,
+                        scoreAfter: scoreAfterWhite,
+                        mate: mateAfterWhite // Store mate from White's perspective too
                     },
                 },
             }));
