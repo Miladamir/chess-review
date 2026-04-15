@@ -157,7 +157,13 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 if (!res.ok) return false;
                 const data = await res.json();
                 if (!data.moves || data.moves.length === 0) return false;
-                return data.moves.some((m: any) => m.san === playedSan && m.total > 0);
+
+                // CRITICAL FIX: Lichess API does NOT return m.total. 
+                // We must sum white, draws, and black manually.
+                return data.moves.some((m: any) => {
+                    const totalGames = (m.white || 0) + (m.draws || 0) + (m.black || 0);
+                    return m.san === playedSan && totalGames > 0;
+                });
             } catch (e) { return false; }
         };
 
@@ -171,7 +177,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
             return change;
         };
 
-        // Cache stores raw engine data (relative to side-to-move) to skip calculations
         let cachedNextBefore: { rawScore: number; bestMove: string | null; mate?: number } | null = null;
 
         for (let i = 0; i < movesList.length; i++) {
@@ -184,21 +189,38 @@ export const useChessStore = create<ChessState>((set, get) => ({
             let classification: Classification = null;
             let bestMoveUci = "";
             let rawScoreBefore = 0;
-            let scoreBeforeWhite = 0; // ALWAYS from White's perspective
-            let scoreAfterWhite = 0;  // ALWAYS from White's perspective
+            let scoreBeforeWhite = 0;
+            let scoreAfterWhite = 0;
             let mateBeforeWhite = undefined;
             let mateAfterWhite = undefined;
 
-            // 1. Book Check
+            // 1. Book Check - ONLY check the first 16 plies (8 full moves)
             if (!isOutOfBook && i < 16) {
                 const isBook = await checkBookMove(fenBefore, movesList[i]);
                 if (isBook) {
                     classification = 'book';
                     tempGame.move(movesList[i]);
-                    set((state) => ({ analysis: { ...state.analysis, [i]: { classification: 'book' } } }));
-                    cachedNextBefore = null;
-                    continue;
-                } else { isOutOfBook = true; }
+
+                    // Provide a complete analysis object so UI/EvalGraph doesn't break
+                    set((state) => ({
+                        analysis: {
+                            ...state.analysis,
+                            [i]: {
+                                classification: 'book',
+                                bestMove: '',
+                                scoreBefore: 0,
+                                scoreAfter: 0,
+                                mate: undefined
+                            }
+                        }
+                    }));
+
+                    cachedNextBefore = null; // Force next move to calculate from scratch
+                    continue; // Skip engine analysis for this move
+                } else {
+                    // If a move isn't in the book, stop checking the API for the rest of the game
+                    isOutOfBook = true;
+                }
             }
 
             // 2. Get BEFORE analysis
@@ -213,7 +235,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 mateBeforeWhite = isWhiteTurnBefore ? analysisBefore.mate : (analysisBefore.mate ? -analysisBefore.mate : undefined);
             }
 
-            // Convert raw score to White's perspective
             scoreBeforeWhite = isWhiteTurnBefore ? rawScoreBefore : -rawScoreBefore;
 
             let bestMoveSan = "";
@@ -236,10 +257,9 @@ export const useChessStore = create<ChessState>((set, get) => ({
 
             if (bestMoveSan === playedSan) {
                 classification = 'best';
-                scoreAfterWhite = scoreBeforeWhite; // Best move maintains the advantage
+                scoreAfterWhite = scoreBeforeWhite;
                 mateAfterWhite = mateBeforeWhite;
 
-                // Cache the raw score for the next move (negated because turn switches)
                 currentAfterAnalysis = { rawScore: -rawScoreBefore, bestMove: null, mate: mateBeforeWhite ? -mateBeforeWhite : undefined };
 
                 const isSacrifice = materialChange < 0;
@@ -251,13 +271,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 const isWhiteTurnAfter = fenAfter.includes(' w ');
                 const analysisAfter = await analyzePosition(fenAfter);
 
-                // Convert after score to White's perspective
                 scoreAfterWhite = isWhiteTurnAfter ? analysisAfter.score : -analysisAfter.score;
                 mateAfterWhite = isWhiteTurnAfter ? analysisAfter.mate : (analysisAfter.mate ? -analysisAfter.mate : undefined);
 
                 currentAfterAnalysis = { rawScore: analysisAfter.score, bestMove: analysisAfter.bestMove, mate: analysisAfter.mate };
 
-                // Eval drop relative to the moving player
                 let evalDrop = scoreBeforeWhite - scoreAfterWhite;
                 if (!isWhiteTurnBefore) evalDrop = -evalDrop;
 
@@ -283,7 +301,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
                         bestMove: bestMoveUci,
                         scoreBefore: scoreBeforeWhite,
                         scoreAfter: scoreAfterWhite,
-                        mate: mateAfterWhite // Store mate from White's perspective too
+                        mate: mateAfterWhite
                     },
                 },
             }));
