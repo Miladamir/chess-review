@@ -176,9 +176,12 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 mateBeforeWhite = isWhiteTurnBefore ? analysisBefore.mate : (analysisBefore.mate ? -analysisBefore.mate : undefined);
             }
 
+            // CRITICAL FIX: Stockfish returns "(none)" for checkmate positions. 
+            // We must sanitize this to an empty string so it doesn't break the UI arrows.
+            if (bestMoveUci === "(none)") bestMoveUci = "";
+
             scoreBeforeWhite = isWhiteTurnBefore ? rawScoreBefore : -rawScoreBefore;
 
-            // FIX: Convert UCI (e.g., e2e4) to SAN (e4) properly using chess.js
             let bestMoveSan = "";
             if (bestMoveUci) {
                 try {
@@ -190,7 +193,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
                     if (moveObj) bestMoveSan = moveObj.san;
                     tempGame.undo();
                 } catch (e) { 
-                    // If conversion fails, we cannot verify if it's the best move
                     bestMoveSan = ""; 
                 }
             }
@@ -209,7 +211,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 scoreAfterWhite = scoreBeforeWhite;
                 mateAfterWhite = mateBeforeWhite;
 
-                // FIX: Set bestMove to null so we don't carry this move's best line over to the next turn
                 currentAfterAnalysis = { rawScore: -rawScoreBefore, bestMove: null, mate: mateBeforeWhite ? -mateBeforeWhite : undefined };
 
                 const isSacrifice = materialChange < 0;
