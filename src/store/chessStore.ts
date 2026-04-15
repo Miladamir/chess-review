@@ -47,13 +47,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
             const move = game.move({ from, to, promotion });
             if (move === null) return false;
             const newHistory = game.history();
-            set({
-                game,
-                fen: game.fen(),
-                turn: game.turn(),
-                movesList: newHistory,
-                currentMoveIndex: newHistory.length,
-            });
+            set({ game, fen: game.fen(), turn: game.turn(), movesList: newHistory, currentMoveIndex: newHistory.length });
             return true;
         } catch (e) { return false; }
     },
@@ -64,29 +58,14 @@ export const useChessStore = create<ChessState>((set, get) => ({
             const move = game.move(san);
             if (move === null) return false;
             const newHistory = game.history();
-            set({
-                game,
-                fen: game.fen(),
-                turn: game.turn(),
-                movesList: newHistory,
-                currentMoveIndex: newHistory.length,
-            });
+            set({ game, fen: game.fen(), turn: game.turn(), movesList: newHistory, currentMoveIndex: newHistory.length });
             return true;
         } catch (e) { return false; }
     },
 
     resetGame: () => {
         const newGame = new Chess();
-        set({
-            game: newGame,
-            fen: newGame.fen(),
-            turn: 'w',
-            movesList: [],
-            currentMoveIndex: 0,
-            analysis: {},
-            headers: {},
-            orientation: 'w',
-        });
+        set({ game: newGame, fen: newGame.fen(), turn: 'w', movesList: [], currentMoveIndex: 0, analysis: {}, headers: {}, orientation: 'w' });
     },
 
     jumpToMove: (targetIndex: number) => {
@@ -94,23 +73,11 @@ export const useChessStore = create<ChessState>((set, get) => ({
         if (targetIndex < 0 || targetIndex > movesList.length) return;
         const tempGame = new Chess();
         for (let i = 0; i < targetIndex; i++) tempGame.move(movesList[i]);
-        set({
-            game: tempGame,
-            fen: tempGame.fen(),
-            turn: tempGame.turn(),
-            currentMoveIndex: targetIndex,
-        });
+        set({ game: tempGame, fen: tempGame.fen(), turn: tempGame.turn(), currentMoveIndex: targetIndex });
     },
 
-    goBack: () => {
-        const index = get().currentMoveIndex;
-        if (index > 0) get().jumpToMove(index - 1);
-    },
-
-    goForward: () => {
-        const index = get().currentMoveIndex;
-        if (index < get().movesList.length) get().jumpToMove(index + 1);
-    },
+    goBack: () => { const index = get().currentMoveIndex; if (index > 0) get().jumpToMove(index - 1); },
+    goForward: () => { const index = get().currentMoveIndex; if (index < get().movesList.length) get().jumpToMove(index + 1); },
 
     setGameFromPgn: (pgn: string, playerUsername?: string) => {
         try {
@@ -119,19 +86,13 @@ export const useChessStore = create<ChessState>((set, get) => ({
             const history = tempGame.history();
             const rawHeaders = tempGame.header();
             const headers: Record<string, string> = {};
-            Object.keys(rawHeaders).forEach(key => {
-                if (rawHeaders[key]) headers[key] = rawHeaders[key];
-            });
+            Object.keys(rawHeaders).forEach(key => { if (rawHeaders[key]) headers[key] = rawHeaders[key]; });
             let detectedOrientation: 'w' | 'b' = 'w';
             const autoFlip = useSettingsStore.getState().autoFlipBoard;
             if (autoFlip && playerUsername) {
                 if (headers['Black']?.toLowerCase() === playerUsername.toLowerCase()) detectedOrientation = 'b';
             }
-            set({
-                game: tempGame, fen: tempGame.fen(), turn: tempGame.turn(),
-                movesList: history, currentMoveIndex: history.length,
-                analysis: {}, headers: headers, orientation: detectedOrientation,
-            });
+            set({ game: tempGame, fen: tempGame.fen(), turn: tempGame.turn(), movesList: history, currentMoveIndex: history.length, analysis: {}, headers, orientation: detectedOrientation });
             return true;
         } catch (e) { console.error(e); return false; }
     },
@@ -157,9 +118,6 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 if (!res.ok) return false;
                 const data = await res.json();
                 if (!data.moves || data.moves.length === 0) return false;
-
-                // CRITICAL FIX: Lichess API does NOT return m.total. 
-                // We must sum white, draws, and black manually.
                 return data.moves.some((m: any) => {
                     const totalGames = (m.white || 0) + (m.draws || 0) + (m.black || 0);
                     return m.san === playedSan && totalGames > 0;
@@ -194,33 +152,16 @@ export const useChessStore = create<ChessState>((set, get) => ({
             let mateBeforeWhite = undefined;
             let mateAfterWhite = undefined;
 
-            // 1. Book Check - ONLY check the first 16 plies (8 full moves)
+            // 1. Book Check
             if (!isOutOfBook && i < 16) {
                 const isBook = await checkBookMove(fenBefore, movesList[i]);
                 if (isBook) {
                     classification = 'book';
                     tempGame.move(movesList[i]);
-
-                    // Provide a complete analysis object so UI/EvalGraph doesn't break
-                    set((state) => ({
-                        analysis: {
-                            ...state.analysis,
-                            [i]: {
-                                classification: 'book',
-                                bestMove: '',
-                                scoreBefore: 0,
-                                scoreAfter: 0,
-                                mate: undefined
-                            }
-                        }
-                    }));
-
-                    cachedNextBefore = null; // Force next move to calculate from scratch
-                    continue; // Skip engine analysis for this move
-                } else {
-                    // If a move isn't in the book, stop checking the API for the rest of the game
-                    isOutOfBook = true;
-                }
+                    set((state) => ({ analysis: { ...state.analysis, [i]: { classification: 'book', bestMove: '', scoreBefore: 0, scoreAfter: 0, mate: undefined } } }));
+                    cachedNextBefore = null; 
+                    continue;
+                } else { isOutOfBook = true; }
             }
 
             // 2. Get BEFORE analysis
@@ -237,13 +178,21 @@ export const useChessStore = create<ChessState>((set, get) => ({
 
             scoreBeforeWhite = isWhiteTurnBefore ? rawScoreBefore : -rawScoreBefore;
 
+            // FIX: Convert UCI (e.g., e2e4) to SAN (e4) properly using chess.js
             let bestMoveSan = "";
             if (bestMoveUci) {
                 try {
-                    const moveObj = tempGame.move(bestMoveUci);
+                    const from = bestMoveUci.substring(0, 2);
+                    const to = bestMoveUci.substring(2, 4);
+                    const promotion = bestMoveUci.length === 5 ? bestMoveUci[4] : undefined;
+                    
+                    const moveObj = tempGame.move({ from, to, promotion });
                     if (moveObj) bestMoveSan = moveObj.san;
                     tempGame.undo();
-                } catch (e) { }
+                } catch (e) { 
+                    // If conversion fails, we cannot verify if it's the best move
+                    bestMoveSan = ""; 
+                }
             }
 
             // 3. Make the actual move
@@ -260,6 +209,7 @@ export const useChessStore = create<ChessState>((set, get) => ({
                 scoreAfterWhite = scoreBeforeWhite;
                 mateAfterWhite = mateBeforeWhite;
 
+                // FIX: Set bestMove to null so we don't carry this move's best line over to the next turn
                 currentAfterAnalysis = { rawScore: -rawScoreBefore, bestMove: null, mate: mateBeforeWhite ? -mateBeforeWhite : undefined };
 
                 const isSacrifice = materialChange < 0;
