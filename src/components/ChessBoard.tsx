@@ -68,9 +68,8 @@ const ChessBoardComponent = () => {
             if (moveAnalysis.bestMove) {
                 const bestFrom = moveAnalysis.bestMove.substring(0, 2) as Square;
                 const bestTo = moveAnalysis.bestMove.substring(2, 4) as Square;
-                
-                // CRITICAL FIX: Validate that the squares are real chess squares (e.g., 'a1' to 'h8')
-                // This prevents rendering glitches if the engine returns "(none)" or malformed data
+
+                // Validate that the squares are real chess squares (e.g., 'a1' to 'h8')
                 const isValidSquare = (sq: string) => /^[a-h][1-8]$/.test(sq);
 
                 if (isValidSquare(bestFrom) && isValidSquare(bestTo) && (bestFrom !== playedFrom || bestTo !== playedTo)) {
@@ -93,7 +92,21 @@ const ChessBoardComponent = () => {
                 const highlightColor = 'rgba(6, 182, 212, 0.5)';
                 styles[lastMove.from] = { backgroundColor: highlightColor };
                 styles[lastMove.to] = { backgroundColor: highlightColor };
+            }
+        }
+        return styles;
+    };
 
+    // Create a map of squares that need an overlay image
+    const getClassificationOverlays = () => {
+        const overlays: Record<string, string> = {};
+        if (currentMoveIndex > 0 && movesList[currentMoveIndex - 1]) {
+            const tempGame = new Chess();
+            for (let i = 0; i < currentMoveIndex; i++) tempGame.move(movesList[i]);
+            const history = tempGame.history({ verbose: true });
+            const lastMove = history[history.length - 1];
+
+            if (lastMove) {
                 const moveAnalysis = analysis[currentMoveIndex - 1];
                 const imgPath = moveAnalysis?.classification ? ({
                     brilliant: '/images/brilliant.png', great: '/images/great.png', best: '/images/best.png',
@@ -103,18 +116,14 @@ const ChessBoardComponent = () => {
                 }[moveAnalysis.classification!]) : null;
 
                 if (imgPath) {
-                    styles[lastMove.to] = {
-                        ...styles[lastMove.to],
-                        backgroundImage: `url(${imgPath})`,
-                        backgroundSize: '40%',
-                        backgroundPosition: 'bottom right',
-                        backgroundRepeat: 'no-repeat',
-                    };
+                    overlays[lastMove.to] = imgPath;
                 }
             }
         }
-        return styles;
+        return overlays;
     };
+
+    const overlays = getClassificationOverlays();
 
     return (
         <div ref={containerRef} className="w-full h-full flex items-center justify-center relative">
@@ -128,6 +137,22 @@ const ChessBoardComponent = () => {
                 boardWidth={boardSize - 10}
                 customArrows={getArrows()}
                 customSquareStyles={getSquareStyles()}
+                // Custom Square renderer to inject the image ON TOP of the piece
+                customSquare={({ children, square, style }) => (
+                    <div style={style} className="relative">
+                        {children}
+                        {overlays[square] && (
+                            <div className="absolute top-0 right-0 w-[60px] h-[60px] max-w-[65%] max-h-[65%] pointer-events-none z-10 p-[2%]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={overlays[square]}
+                                    alt=""
+                                    className="w-full h-full object-contain drop-shadow-sm"
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
             />
         </div>
     );
